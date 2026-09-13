@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:http/http.dart' as http;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,89 +70,157 @@ class AddNewsPage extends StatefulWidget {
 }
 
 class _AddNewsPageState extends State<AddNewsPage> {
-  List<Map<String, String>> publishedNews = [];
+  final String server = "http://192.168.43.252/news_api/";
 
-  void _showCreateNewsDialog() {
-    final TextEditingController titleController = TextEditingController();
-    final TextEditingController authorController = TextEditingController();
-    final TextEditingController bodyController = TextEditingController();
+  List<dynamic> publishedNews = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    getNews();
+  }
+
+  Future<void> getNews() async {
+    try {
+      final uri = "${server}getNews.php";
+      final response = await http.get(Uri.parse(uri));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          publishedNews = jsonDecode(response.body);
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching news: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> addNews(String title, String author, String body) async {
+    try {
+      final uri = "${server}addNews.php";
+      await http.post(
+        Uri.parse(uri),
+        body: {
+          "title": title,
+          "author": author,
+          "body": body,
+        },
+      );
+      getNews();
+    } catch (e) {
+      debugPrint("Error adding news: $e");
+    }
+  }
+
+  Future<void> editNews(String id, String title, String author, String body) async {
+    try {
+      final uri = "${server}editNews.php";
+      await http.post(
+        Uri.parse(uri),
+        body: {
+          "id": id,
+          "title": title,
+          "author": author,
+          "body": body,
+        },
+      );
+      getNews();
+    } catch (e) {
+      debugPrint("Error editing news: $e");
+    }
+  }
+
+  Future<void> deleteTask(String id) async {
+    try {
+      final uri = "${server}deleteNews.php";
+      await http.post(
+        Uri.parse(uri),
+        body: {"id": id},
+      );
+      getNews();
+    } catch (e) {
+      debugPrint("Error deleting news: $e");
+    }
+  }
+
+  void _showNewsDialog({Map<String, dynamic>? newsItem}) {
+    final bool isEditing = newsItem != null;
+    final TextEditingController titleController = TextEditingController(text: isEditing ? newsItem['title'] : '');
+    final TextEditingController authorController = TextEditingController(text: isEditing ? newsItem['author'] : '');
+    final TextEditingController bodyController = TextEditingController(text: isEditing ? newsItem['body'] : '');
 
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: '',
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (dialogContext, anim1, anim2) {
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
         return Center(
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: MediaQuery.of(dialogContext).size.width * 0.88,
-              padding: const EdgeInsets.all(20),
+              width: MediaQuery.of(dialogContext).size.width * 0.78,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFF2C2C2E),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black54,
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "Create News",
-                    style: TextStyle(
-                      fontSize: 20,
+                  Text(
+                    isEditing ? "Edit News" : "Create News",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: CupertinoColors.white,
+                      color: Color(0xFFEBEBF5),
                     ),
                   ),
-                  const SizedBox(height: 16),
-
+                  const SizedBox(height: 14),
                   CupertinoTextField(
                     controller: titleController,
                     placeholder: "Title",
-                    placeholderStyle: const TextStyle(color: CupertinoColors.systemGrey),
-                    style: const TextStyle(color: CupertinoColors.white, fontSize: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
+                    style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
+                  const SizedBox(height: 8),
                   CupertinoTextField(
                     controller: authorController,
                     placeholder: "Author",
-                    placeholderStyle: const TextStyle(color: CupertinoColors.systemGrey),
-                    style: const TextStyle(color: CupertinoColors.white, fontSize: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
+                    style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
+                  const SizedBox(height: 8),
                   CupertinoTextField(
                     controller: bodyController,
                     placeholder: "Body...",
-                    placeholderStyle: const TextStyle(color: CupertinoColors.systemGrey),
-                    style: const TextStyle(color: CupertinoColors.white, fontSize: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
+                    style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     maxLines: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -162,7 +232,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
                             "Cancel",
                             style: TextStyle(
                               color: Color(0xFFFF453A),
-                              fontSize: 18,
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -171,25 +241,29 @@ class _AddNewsPageState extends State<AddNewsPage> {
                       GestureDetector(
                         onTap: () {
                           if (titleController.text.trim().isNotEmpty) {
-                            setState(() {
-                              publishedNews.add({
-                                "title": titleController.text,
-                                "author": authorController.text,
-                                "body": bodyController.text,
-                              });
-                            });
+                            if (isEditing) {
+                              editNews(
+                                newsItem['id'].toString(),
+                                titleController.text.trim(),
+                                authorController.text.trim(),
+                                bodyController.text.trim(),
+                              );
+                            } else {
+                              addNews(
+                                titleController.text.trim(),
+                                authorController.text.trim(),
+                                bodyController.text.trim(),
+                              );
+                            }
                             Navigator.pop(dialogContext);
                           }
                         },
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          child: Text(
-                            "Publish",
-                            style: TextStyle(
-                              color: Color(0xFF0A84FF),
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        child: Text(
+                          isEditing ? "Save" : "Publish",
+                          style: const TextStyle(
+                            color: Color(0xFF0A84FF),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -211,46 +285,85 @@ class _AddNewsPageState extends State<AddNewsPage> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Text(
-                "News Feed",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "News Feed",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  GestureDetector(
+                    onTap: getNews,
+                    child: const Icon(CupertinoIcons.refresh, size: 22, color: CupertinoColors.systemBlue),
+                  ),
+                ],
               ),
             ),
-
             const Divider(color: CupertinoColors.systemGrey4),
-
             Expanded(
-              child: publishedNews.isEmpty
+              child: isLoading
+                  ? const Center(child: CupertinoActivityIndicator())
+                  : publishedNews.isEmpty
                   ? const Center(child: Text("No news published yet."))
                   : ListView.builder(
                 itemCount: publishedNews.length,
-                padding: const EdgeInsets.only(bottom: 180),
+                padding: const EdgeInsets.only(bottom: 180, top: 12),
                 itemBuilder: (context, index) {
                   final item = publishedNews[index];
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.darkBackgroundGray,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: CupertinoColors.systemGrey),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item["title"] ?? "",
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: GlassMenu(
+                      menuWidth: 180,
+                      triggerBuilder: (context, toggleMenu) {
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onLongPress: toggleMenu,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.darkBackgroundGray,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: CupertinoColors.systemGrey.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item["title"] ?? "",
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "By: ${item["author"] ?? 'Unknown'}",
+                                  style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(item["body"] ?? ""),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      items: [
+                        GlassMenuItem(
+                          icon: const Icon(CupertinoIcons.pencil),
+                          title: "Edit",
+                          onTap: () {
+                            _showNewsDialog(newsItem: item);
+                          },
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "By: ${item["author"]}",
-                          style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
+                        GlassMenuItem(
+                          isDestructive: true,
+                          icon: const Icon(CupertinoIcons.delete),
+                          title: "Delete",
+                          onTap: () {
+                            deleteTask(item["id"].toString());
+                          },
                         ),
-                        const SizedBox(height: 8),
-                        Text(item["body"] ?? ""),
                       ],
                     ),
                   );
@@ -259,12 +372,12 @@ class _AddNewsPageState extends State<AddNewsPage> {
             ),
           ],
         ),
-
         Positioned(
           bottom: 110,
           right: 20,
-          child: GestureDetector(
-            onTap: _showCreateNewsDialog,
+          child: CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () => _showNewsDialog(),
             child: Container(
               height: 52,
               width: 52,
