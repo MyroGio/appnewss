@@ -5,34 +5,26 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:http/http.dart' as http;
 
-// ==========================================
-// DARK GRAY & BLUE EDITORIAL DESIGN SYSTEM
-// ==========================================
 abstract class AppTheme {
-  // Brand & Urgency Accents
   static const Color primaryBlue = Color(0xFF114B97);
   static const Color accentBlue = Color(0xFF0A84FF);
   static const Color alertRed = Color(0xFFE12B2B);
 
-  // Dark Gray Surface Palette
   static const Color backgroundDark = Color(0xFF121214);
   static const Color surfaceDark = Color(0xFF1C1C1E);
   static const Color cardDark = Color(0xFF2C2C2E);
   static const Color borderDark = Color(0xFF38383A);
 
-  // Text & Icon Colors
   static const Color textWhite = Color(0xFFFFFFFF);
   static const Color textBody = Color(0xFFEBEBF5);
   static const Color textMuted = Color(0xFF8E8E93);
 
-  // Category Tag Colors (Pastels on Dark)
   static const Color tagWorldBg = Color(0xFF1A2634);
   static const Color tagWorldText = Color(0xFF64B5F6);
 
   static const Color tagTechBg = Color(0xFF1B2E23);
   static const Color tagTechText = Color(0xFF81C784);
 
-  // Typography Styles
   static const TextStyle brandHeaderStyle = TextStyle(
     fontFamily: 'serif',
     fontSize: 24,
@@ -81,7 +73,6 @@ abstract class AppTheme {
     letterSpacing: 0.8,
   );
 
-  // Card Decoration
   static BoxDecoration cardDecoration = BoxDecoration(
     color: surfaceDark,
     borderRadius: BorderRadius.circular(14),
@@ -169,6 +160,7 @@ class _HomePageState extends State<HomePage> {
   List<dynamic> newsFeed = [];
   List<dynamic> filteredNewsFeed = [];
   bool isLoading = true;
+  bool isOffline = false;
   final TextEditingController searchController = TextEditingController();
 
   @override
@@ -184,9 +176,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchNews() async {
+    setState(() {
+      isLoading = true;
+      isOffline = false;
+    });
+
     try {
       final uri = "${server}getNews.php";
-      final response = await http.get(Uri.parse(uri));
+      final response = await http
+          .get(Uri.parse(uri))
+          .timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -194,12 +193,19 @@ class _HomePageState extends State<HomePage> {
           newsFeed = data;
           filteredNewsFeed = data;
           isLoading = false;
+          isOffline = false;
         });
         _filterNews(searchController.text);
+      } else {
+        setState(() {
+          isOffline = true;
+          isLoading = false;
+        });
       }
     } catch (e) {
       debugPrint("Error fetching news: $e");
       setState(() {
+        isOffline = true;
         isLoading = false;
       });
     }
@@ -226,7 +232,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Utility to handle missing date key gracefully
   String _getPublishedDate(Map<String, dynamic> article) {
     final rawDate = article["created_at"] ?? article["date"] ?? article["published_at"];
     if (rawDate == null || rawDate.toString().isEmpty) {
@@ -411,6 +416,67 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: isLoading
               ? const Center(child: CupertinoActivityIndicator(color: AppTheme.accentBlue))
+              : isOffline
+              ? Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: GlassContainer(
+                settings: const LiquidGlassSettings(chromaticAberration: 0.5),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2C2E).withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "XAMPP Server Offline",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppTheme.textWhite,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "Unable to connect to Apache/MySQL server. Make sure XAMPP is STARTED and the IP address is correct.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFFEBEBF5),
+                          fontSize: 14,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          color: const Color(0xFF48484A).withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(16),
+                          onPressed: fetchNews,
+                          child: const Text(
+                            "Retry Connection",
+                            style: TextStyle(
+                              color: AppTheme.textWhite,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          )
               : filteredNewsFeed.isEmpty
               ? Center(
             child: Text(
@@ -537,6 +603,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
 
   List<dynamic> publishedNews = [];
   bool isLoading = true;
+  bool isOffline = false;
 
   @override
   void initState() {
@@ -545,19 +612,33 @@ class _AddNewsPageState extends State<AddNewsPage> {
   }
 
   Future<void> getNews() async {
+    setState(() {
+      isLoading = true;
+      isOffline = false;
+    });
+
     try {
       final uri = "${server}getNews.php";
-      final response = await http.get(Uri.parse(uri));
+      final response = await http
+          .get(Uri.parse(uri))
+          .timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         setState(() {
           publishedNews = jsonDecode(response.body);
+          isLoading = false;
+          isOffline = false;
+        });
+      } else {
+        setState(() {
+          isOffline = true;
           isLoading = false;
         });
       }
     } catch (e) {
       debugPrint("Error fetching news: $e");
       setState(() {
+        isOffline = true;
         isLoading = false;
       });
     }
@@ -573,10 +654,13 @@ class _AddNewsPageState extends State<AddNewsPage> {
           "author": author,
           "body": body,
         },
-      );
+      ).timeout(const Duration(seconds: 4));
       getNews();
     } catch (e) {
       debugPrint("Error adding news: $e");
+      setState(() {
+        isOffline = true;
+      });
     }
   }
 
@@ -591,10 +675,13 @@ class _AddNewsPageState extends State<AddNewsPage> {
           "author": author,
           "body": body,
         },
-      );
+      ).timeout(const Duration(seconds: 4));
       getNews();
     } catch (e) {
       debugPrint("Error editing news: $e");
+      setState(() {
+        isOffline = true;
+      });
     }
   }
 
@@ -604,10 +691,13 @@ class _AddNewsPageState extends State<AddNewsPage> {
       await http.post(
         Uri.parse(uri),
         body: {"id": id},
-      );
+      ).timeout(const Duration(seconds: 4));
       getNews();
     } catch (e) {
       debugPrint("Error deleting news: $e");
+      setState(() {
+        isOffline = true;
+      });
     }
   }
 
@@ -627,125 +717,128 @@ class _AddNewsPageState extends State<AddNewsPage> {
         return Center(
           child: Material(
             color: Colors.transparent,
-            child: Container(
-              width: MediaQuery.of(dialogContext).size.width * 0.78,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.cardDark,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderDark),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    isEditing ? "Edit News" : "Create News",
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFEBEBF5),
+            child: GlassContainer(
+              settings: const LiquidGlassSettings(chromaticAberration: 0.5),
+              child: Container(
+                width: MediaQuery.of(dialogContext).size.width * 0.78,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardDark.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.borderDark.withValues(alpha: 0.6)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isEditing ? "Edit News" : "Create News",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFEBEBF5),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  CupertinoTextField(
-                    controller: titleController,
-                    placeholder: "Title",
-                    placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
-                    style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.backgroundDark,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppTheme.borderDark),
+                    CupertinoTextField(
+                      controller: titleController,
+                      placeholder: "Title",
+                      placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
+                      style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundDark.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppTheme.borderDark),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
-                  CupertinoTextField(
-                    controller: authorController,
-                    placeholder: "Author",
-                    placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
-                    style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.backgroundDark,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppTheme.borderDark),
+                    CupertinoTextField(
+                      controller: authorController,
+                      placeholder: "Author",
+                      placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
+                      style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundDark.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppTheme.borderDark),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
-                  CupertinoTextField(
-                    controller: bodyController,
-                    placeholder: "Body...",
-                    placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
-                    style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    maxLines: 4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.backgroundDark,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppTheme.borderDark),
+                    CupertinoTextField(
+                      controller: bodyController,
+                      placeholder: "Body...",
+                      placeholderStyle: const TextStyle(color: Color(0xFF636366), fontSize: 13),
+                      style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      maxLines: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundDark.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppTheme.borderDark),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          if (isEditing) {
-                            deleteTask(newsItem['id'].toString());
-                          }
-                          Navigator.pop(dialogContext);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          child: Text(
-                            isEditing ? "Delete" : "Cancel",
-                            style: TextStyle(
-                              color: isEditing ? AppTheme.alertRed : const Color(0xFF8E8E93),
-                              fontSize: 14,
-                              fontWeight: isEditing ? FontWeight.bold : FontWeight.w500,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            if (isEditing) {
+                              deleteTask(newsItem['id'].toString());
+                            }
+                            Navigator.pop(dialogContext);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            child: Text(
+                              isEditing ? "Delete" : "Cancel",
+                              style: TextStyle(
+                                color: isEditing ? AppTheme.alertRed : const Color(0xFF8E8E93),
+                                fontSize: 14,
+                                fontWeight: isEditing ? FontWeight.bold : FontWeight.w500,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          if (titleController.text.trim().isNotEmpty) {
-                            if (isEditing) {
-                              editNews(
-                                newsItem['id'].toString(),
-                                titleController.text.trim(),
-                                authorController.text.trim(),
-                                bodyController.text.trim(),
-                              );
-                            } else {
-                              addNews(
-                                titleController.text.trim(),
-                                authorController.text.trim(),
-                                bodyController.text.trim(),
-                              );
+                        GestureDetector(
+                          onTap: () {
+                            if (titleController.text.trim().isNotEmpty) {
+                              if (isEditing) {
+                                editNews(
+                                  newsItem['id'].toString(),
+                                  titleController.text.trim(),
+                                  authorController.text.trim(),
+                                  bodyController.text.trim(),
+                                );
+                              } else {
+                                addNews(
+                                  titleController.text.trim(),
+                                  authorController.text.trim(),
+                                  bodyController.text.trim(),
+                                );
+                              }
+                              Navigator.pop(dialogContext);
                             }
-                            Navigator.pop(dialogContext);
-                          }
-                        },
-                        child: const Text(
-                          "Publish",
-                          style: TextStyle(
-                            color: AppTheme.accentBlue,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                          },
+                          child: const Text(
+                            "Publish",
+                            style: TextStyle(
+                              color: AppTheme.accentBlue,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -783,6 +876,67 @@ class _AddNewsPageState extends State<AddNewsPage> {
             Expanded(
               child: isLoading
                   ? const Center(child: CupertinoActivityIndicator(color: AppTheme.accentBlue))
+                  : isOffline
+                  ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: GlassContainer(
+                    settings: const LiquidGlassSettings(chromaticAberration: 0.5),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2C2C2E).withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            "Server Connection Failed",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppTheme.textWhite,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            "Unable to connect to Apache/MySQL server. Make sure XAMPP is STARTED and the IP address is correct.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFFEBEBF5),
+                              fontSize: 14,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: CupertinoButton(
+                              padding: EdgeInsets.zero,
+                              color: const Color(0xFF48484A).withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(16),
+                              onPressed: getNews,
+                              child: const Text(
+                                "Retry Connection",
+                                style: TextStyle(
+                                  color: AppTheme.textWhite,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              )
                   : publishedNews.isEmpty
                   ? const Center(child: Text("No news published yet.", style: TextStyle(color: AppTheme.textMuted)))
                   : ListView.builder(
