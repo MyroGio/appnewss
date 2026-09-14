@@ -24,7 +24,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     List<Widget> pages = [
-      const Center(child: Text("HomePage")),
+      const HomePage(),
       const AddNewsPage(),
       const Center(child: Text("Profile")),
     ];
@@ -58,6 +58,233 @@ class _MyAppState extends State<MyApp> {
         ),
         body: SafeArea(child: pages[selectedIndex]),
       ),
+    );
+  }
+}
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final String server = "http://192.168.100.218/news_api/";
+  List<dynamic> newsFeed = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchNews();
+  }
+
+  Future<void> fetchNews() async {
+    try {
+      final uri = "${server}getNews.php";
+      final response = await http.get(Uri.parse(uri));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          newsFeed = jsonDecode(response.body);
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching news: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _openArticleDetail(Map<String, dynamic> article) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "ARTICLE DETAILS",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(CupertinoIcons.xmark_circle_fill, color: CupertinoColors.systemGrey),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: CupertinoColors.systemGrey4, height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      article["title"] ?? "",
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(CupertinoIcons.person_fill, size: 14, color: CupertinoColors.systemBlue),
+                        const SizedBox(width: 6),
+                        Text(
+                          "By ${article["author"] ?? 'Unknown'}",
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: CupertinoColors.systemBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      article["body"] ?? "",
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.5,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "News Feed",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              GestureDetector(
+                onTap: fetchNews,
+                child: const Icon(CupertinoIcons.refresh, size: 22, color: CupertinoColors.systemBlue),
+              ),
+            ],
+          ),
+        ),
+        const Divider(color: CupertinoColors.systemGrey4, height: 1),
+        Expanded(
+          child: isLoading
+              ? const Center(child: CupertinoActivityIndicator())
+              : newsFeed.isEmpty
+              ? const Center(child: Text("No news published yet."))
+              : ListView.builder(
+            itemCount: newsFeed.length,
+            padding: const EdgeInsets.only(bottom: 100, top: 12),
+            itemBuilder: (context, index) {
+              final article = newsFeed[index];
+
+              return GestureDetector(
+                onTap: () => _openArticleDetail(article),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1E),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: CupertinoColors.systemGrey.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article["title"] ?? "",
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          height: 1.25,
+                          color: CupertinoColors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "By: ${article["author"] ?? 'Unknown'}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        article["body"] ?? "",
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.4,
+                          color: CupertinoColors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Row(
+                        children: [
+                          Text(
+                            "Read full article",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: CupertinoColors.systemBlue,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            CupertinoIcons.chevron_right,
+                            size: 14,
+                            color: CupertinoColors.systemBlue,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -300,7 +527,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    "News Feed",
+                    "News Management",
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   GestureDetector(
