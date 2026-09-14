@@ -277,7 +277,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(width: 8),
                       const Text(
-                        "GLOBAL NEWS READER",
+                        "GLOBAL ARES READER",
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -509,7 +509,7 @@ class _HomePageState extends State<HomePage> {
                                 color: AppTheme.alertRed,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text("BREAKING NEWS", style: AppTheme.alertBadgeStyle),
+                              child: const Text("ARES NEWS", style: AppTheme.alertBadgeStyle),
                             ),
                             const SizedBox(width: 8),
                           ],
