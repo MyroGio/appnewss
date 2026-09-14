@@ -108,7 +108,7 @@ class _MyAppState extends State<MyApp> {
     List<Widget> pages = [
       const HomePage(),
       const AddNewsPage(),
-      const Center(child: Text("Profile", style: TextStyle(color: AppTheme.textWhite))),
+      const ProfilePage(),
     ];
 
     return CupertinoApp(
@@ -1013,6 +1013,112 @@ class _AddNewsPageState extends State<AddNewsPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
+  final List<String> members = const [
+    "Tantiangco, Myro Gio",
+    "Alfonso, Dennis Andrew",
+    "Layug, Jhun Raely",
+    "Eingeline Trono",
+    "Delos Santos, Jhannele",
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppTheme.surfaceDark,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              CupertinoIcons.news_solid,
+              size: 50,
+              color: AppTheme.accentBlue,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "AresNews",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textWhite,
+            ),
+          ),
+          const Text(
+            "PROJECT TEAM",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textMuted,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 28),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: AppTheme.cardDecoration,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(CupertinoIcons.group_solid, color: AppTheme.accentBlue, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      "Members",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textWhite,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(color: AppTheme.borderDark),
+                const SizedBox(height: 8),
+                ...members.map(
+                      (member) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          CupertinoIcons.person_circle,
+                          color: AppTheme.textMuted,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          member,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textBody,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
