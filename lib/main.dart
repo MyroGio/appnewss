@@ -70,7 +70,7 @@ class AddNewsPage extends StatefulWidget {
 }
 
 class _AddNewsPageState extends State<AddNewsPage> {
-  final String server = "http://192.168.43.252/news_api/";
+  final String server = "http://192.168.100.218/news_api/";
 
   List<dynamic> publishedNews = [];
   bool isLoading = true;
@@ -184,6 +184,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
                     ),
                   ),
                   const SizedBox(height: 14),
+
                   CupertinoTextField(
                     controller: titleController,
                     placeholder: "Title",
@@ -196,6 +197,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
+
                   CupertinoTextField(
                     controller: authorController,
                     placeholder: "Author",
@@ -208,6 +210,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
+
                   CupertinoTextField(
                     controller: bodyController,
                     placeholder: "Body...",
@@ -221,19 +224,25 @@ class _AddNewsPageState extends State<AddNewsPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(dialogContext),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        onTap: () {
+                          if (isEditing) {
+                            deleteTask(newsItem['id'].toString());
+                          }
+                          Navigator.pop(dialogContext);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           child: Text(
-                            "Cancel",
+                            isEditing ? "Delete" : "Cancel",
                             style: TextStyle(
-                              color: Color(0xFFFF453A),
+                              color: isEditing ? const Color(0xFFFF453A) : const Color(0xFF8E8E93),
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: isEditing ? FontWeight.bold : FontWeight.w500,
                             ),
                           ),
                         ),
@@ -301,7 +310,9 @@ class _AddNewsPageState extends State<AddNewsPage> {
                 ],
               ),
             ),
+
             const Divider(color: CupertinoColors.systemGrey4),
+
             Expanded(
               child: isLoading
                   ? const Center(child: CupertinoActivityIndicator())
@@ -309,62 +320,42 @@ class _AddNewsPageState extends State<AddNewsPage> {
                   ? const Center(child: Text("No news published yet."))
                   : ListView.builder(
                 itemCount: publishedNews.length,
-                padding: const EdgeInsets.only(bottom: 180, top: 12),
+                padding: const EdgeInsets.only(bottom: 180),
                 itemBuilder: (context, index) {
                   final item = publishedNews[index];
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: GlassMenu(
-                      menuWidth: 180,
-                      triggerBuilder: (context, toggleMenu) {
-                        return GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onLongPress: toggleMenu,
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: CupertinoColors.darkBackgroundGray,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: CupertinoColors.systemGrey.withValues(alpha: 0.3)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item["title"] ?? "",
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "By: ${item["author"] ?? 'Unknown'}",
-                                  style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(item["body"] ?? ""),
-                              ],
-                            ),
-                          ),
-                        );
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onLongPress: () {
+                        _showNewsDialog(newsItem: item);
                       },
-                      items: [
-                        GlassMenuItem(
-                          icon: const Icon(CupertinoIcons.pencil),
-                          title: "Edit",
-                          onTap: () {
-                            _showNewsDialog(newsItem: item);
-                          },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.darkBackgroundGray,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: CupertinoColors.systemGrey.withValues(alpha: 0.3)),
                         ),
-                        GlassMenuItem(
-                          isDestructive: true,
-                          icon: const Icon(CupertinoIcons.delete),
-                          title: "Delete",
-                          onTap: () {
-                            deleteTask(item["id"].toString());
-                          },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item["title"] ?? "",
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "By: ${item["author"] ?? 'Unknown'}",
+                              style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(item["body"] ?? ""),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   );
                 },
@@ -372,6 +363,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
             ),
           ],
         ),
+
         Positioned(
           bottom: 110,
           right: 20,
