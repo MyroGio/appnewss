@@ -5,6 +5,97 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:http/http.dart' as http;
 
+// ==========================================
+// DARK GRAY & BLUE EDITORIAL DESIGN SYSTEM
+// ==========================================
+abstract class AppTheme {
+  // Brand & Urgency Accents
+  static const Color primaryBlue = Color(0xFF114B97);
+  static const Color accentBlue = Color(0xFF0A84FF);
+  static const Color alertRed = Color(0xFFE12B2B);
+
+  // Dark Gray Surface Palette
+  static const Color backgroundDark = Color(0xFF121214);
+  static const Color surfaceDark = Color(0xFF1C1C1E);
+  static const Color cardDark = Color(0xFF2C2C2E);
+  static const Color borderDark = Color(0xFF38383A);
+
+  // Text & Icon Colors
+  static const Color textWhite = Color(0xFFFFFFFF);
+  static const Color textBody = Color(0xFFEBEBF5);
+  static const Color textMuted = Color(0xFF8E8E93);
+
+  // Category Tag Colors (Pastels on Dark)
+  static const Color tagWorldBg = Color(0xFF1A2634);
+  static const Color tagWorldText = Color(0xFF64B5F6);
+
+  static const Color tagTechBg = Color(0xFF1B2E23);
+  static const Color tagTechText = Color(0xFF81C784);
+
+  // Typography Styles
+  static const TextStyle brandHeaderStyle = TextStyle(
+    fontFamily: 'serif',
+    fontSize: 24,
+    fontWeight: FontWeight.w900,
+    color: textWhite,
+    letterSpacing: -0.5,
+  );
+
+  static const TextStyle modalTitleStyle = TextStyle(
+    fontFamily: 'serif',
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    height: 1.2,
+    color: textWhite,
+  );
+
+  static const TextStyle cardTitleStyle = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+    height: 1.3,
+    color: textWhite,
+  );
+
+  static const TextStyle authorStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: accentBlue,
+  );
+
+  static const TextStyle dateStyle = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    color: textMuted,
+  );
+
+  static const TextStyle bodyStyle = TextStyle(
+    fontSize: 14,
+    height: 1.5,
+    color: textBody,
+  );
+
+  static const TextStyle alertBadgeStyle = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w800,
+    color: textWhite,
+    letterSpacing: 0.8,
+  );
+
+  // Card Decoration
+  static BoxDecoration cardDecoration = BoxDecoration(
+    color: surfaceDark,
+    borderRadius: BorderRadius.circular(14),
+    border: Border.all(color: borderDark),
+    boxShadow: const [
+      BoxShadow(
+        color: Color(0x40000000),
+        blurRadius: 10,
+        offset: Offset(0, 4),
+      ),
+    ],
+  );
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LiquidGlassWidgets.initialize();
@@ -26,27 +117,31 @@ class _MyAppState extends State<MyApp> {
     List<Widget> pages = [
       const HomePage(),
       const AddNewsPage(),
-      const Center(child: Text("Profile")),
+      const Center(child: Text("Profile", style: TextStyle(color: AppTheme.textWhite))),
     ];
 
     return CupertinoApp(
-      theme: const CupertinoThemeData(brightness: Brightness.dark),
+      theme: const CupertinoThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: AppTheme.backgroundDark,
+        primaryColor: AppTheme.primaryBlue,
+      ),
       debugShowCheckedModeBanner: false,
       home: GlassScaffold(
         bottomBar: GlassTabBar.bottom(
           settings: const LiquidGlassSettings(chromaticAberration: 1),
           tabs: const [
             GlassTab(
-              icon: FaIcon(FontAwesomeIcons.house),
-              activeIcon: Icon(CupertinoIcons.house_fill, color: CupertinoColors.systemBlue),
+              icon: FaIcon(FontAwesomeIcons.house, size: 20),
+              activeIcon: Icon(CupertinoIcons.house_fill, color: AppTheme.accentBlue),
             ),
             GlassTab(
               icon: Icon(CupertinoIcons.add_circled),
-              activeIcon: Icon(CupertinoIcons.add_circled_solid, color: CupertinoColors.systemBlue),
+              activeIcon: Icon(CupertinoIcons.add_circled_solid, color: AppTheme.accentBlue),
             ),
             GlassTab(
               icon: Icon(CupertinoIcons.person),
-              activeIcon: Icon(CupertinoIcons.person_fill, color: CupertinoColors.systemBlue),
+              activeIcon: Icon(CupertinoIcons.person_fill, color: AppTheme.accentBlue),
             ),
           ],
           selectedIndex: selectedIndex,
@@ -72,12 +167,20 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final String server = "http://192.168.100.218/news_api/";
   List<dynamic> newsFeed = [];
+  List<dynamic> filteredNewsFeed = [];
   bool isLoading = true;
+  final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchNews();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchNews() async {
@@ -86,10 +189,13 @@ class _HomePageState extends State<HomePage> {
       final response = await http.get(Uri.parse(uri));
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
         setState(() {
-          newsFeed = jsonDecode(response.body);
+          newsFeed = data;
+          filteredNewsFeed = data;
           isLoading = false;
         });
+        _filterNews(searchController.text);
       }
     } catch (e) {
       debugPrint("Error fetching news: $e");
@@ -99,77 +205,145 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _filterNews(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        filteredNewsFeed = newsFeed;
+      });
+    } else {
+      final lowerQuery = query.toLowerCase();
+      setState(() {
+        filteredNewsFeed = newsFeed.where((article) {
+          final title = (article["title"] ?? "").toString().toLowerCase();
+          final author = (article["author"] ?? "").toString().toLowerCase();
+          final body = (article["body"] ?? "").toString().toLowerCase();
+
+          return title.contains(lowerQuery) ||
+              author.contains(lowerQuery) ||
+              body.contains(lowerQuery);
+        }).toList();
+      });
+    }
+  }
+
+  // Utility to handle missing date key gracefully
+  String _getPublishedDate(Map<String, dynamic> article) {
+    final rawDate = article["created_at"] ?? article["date"] ?? article["published_at"];
+    if (rawDate == null || rawDate.toString().isEmpty) {
+      return "Recently Published";
+    }
+    return rawDate.toString();
+  }
+
   void _openArticleDetail(Map<String, dynamic> article) {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.85,
         decoration: const BoxDecoration(
-          color: Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          color: AppTheme.surfaceDark,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.borderDark,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "ARTICLE DETAILS",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                      color: CupertinoColors.systemGrey,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.alertRed,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "GLOBAL NEWS READER",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(CupertinoIcons.xmark_circle_fill, color: CupertinoColors.systemGrey),
+                    child: const Icon(CupertinoIcons.xmark_circle_fill, color: AppTheme.textMuted),
                   ),
                 ],
               ),
             ),
-            const Divider(color: CupertinoColors.systemGrey4, height: 1),
+            const Divider(color: AppTheme.borderDark, height: 1),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      article["title"] ?? "",
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                        color: CupertinoColors.white,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.tagWorldBg,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        "WORLD COVERAGE",
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.tagWorldText),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+                    Text(
+                      article["title"] ?? "",
+                      style: AppTheme.modalTitleStyle,
+                    ),
+                    const SizedBox(height: 12),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(CupertinoIcons.person_fill, size: 14, color: CupertinoColors.systemBlue),
-                        const SizedBox(width: 6),
-                        Text(
-                          "By ${article["author"] ?? 'Unknown'}",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: CupertinoColors.systemBlue,
-                          ),
+                        Row(
+                          children: [
+                            const Icon(CupertinoIcons.person_fill, size: 14, color: AppTheme.accentBlue),
+                            const SizedBox(width: 6),
+                            Text(
+                              "By ${article["author"] ?? 'Unknown'}",
+                              style: AppTheme.authorStyle,
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            const Icon(CupertinoIcons.clock, size: 12, color: AppTheme.textMuted),
+                            const SizedBox(width: 4),
+                            Text(
+                              _getPublishedDate(article),
+                              style: AppTheme.dateStyle,
+                            ),
+                          ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
+                    const Divider(color: AppTheme.borderDark),
+                    const SizedBox(height: 16),
                     Text(
                       article["body"] ?? "",
-                      style: const TextStyle(
-                        fontSize: 15,
-                        height: 1.5,
-                        color: CupertinoColors.white,
-                      ),
+                      style: AppTheme.bodyStyle.copyWith(fontSize: 16, height: 1.6),
                     ),
                   ],
                 ),
@@ -191,72 +365,134 @@ class _HomePageState extends State<HomePage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "News Feed",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("ARES NEWS", style: AppTheme.brandHeaderStyle),
+                  Text(
+                    "DAILY NEWS BUGLE",
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textMuted, letterSpacing: 1.2),
+                  ),
+                ],
               ),
               GestureDetector(
                 onTap: fetchNews,
-                child: const Icon(CupertinoIcons.refresh, size: 22, color: CupertinoColors.systemBlue),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceDark,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.borderDark),
+                  ),
+                  child: const Icon(CupertinoIcons.refresh, size: 18, color: AppTheme.accentBlue),
+                ),
               ),
             ],
           ),
         ),
-        const Divider(color: CupertinoColors.systemGrey4, height: 1),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+          child: CupertinoSearchTextField(
+            controller: searchController,
+            onChanged: _filterNews,
+            placeholder: "Search headlines, authors, or articles...",
+            placeholderStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+            style: const TextStyle(color: AppTheme.textWhite, fontSize: 13),
+            backgroundColor: AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            itemColor: AppTheme.textMuted,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Divider(color: AppTheme.borderDark, height: 1),
+
         Expanded(
           child: isLoading
-              ? const Center(child: CupertinoActivityIndicator())
-              : newsFeed.isEmpty
-              ? const Center(child: Text("No news published yet."))
+              ? const Center(child: CupertinoActivityIndicator(color: AppTheme.accentBlue))
+              : filteredNewsFeed.isEmpty
+              ? Center(
+            child: Text(
+              newsFeed.isEmpty ? "No news published yet." : "No articles found.",
+              style: const TextStyle(color: AppTheme.textMuted),
+            ),
+          )
               : ListView.builder(
-            itemCount: newsFeed.length,
+            itemCount: filteredNewsFeed.length,
             padding: const EdgeInsets.only(bottom: 100, top: 12),
             itemBuilder: (context, index) {
-              final article = newsFeed[index];
+              final article = filteredNewsFeed[index];
+              final isBreaking = index == 0 && searchController.text.isEmpty;
 
               return GestureDetector(
                 onTap: () => _openArticleDetail(article),
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: CupertinoColors.systemGrey.withValues(alpha: 0.3)),
-                  ),
+                  decoration: AppTheme.cardDecoration,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          if (isBreaking) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.alertRed,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text("BREAKING NEWS", style: AppTheme.alertBadgeStyle),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: index % 2 == 0 ? AppTheme.tagWorldBg : AppTheme.tagTechBg,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              index % 2 == 0 ? "WORLD" : "TECH",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: index % 2 == 0 ? AppTheme.tagWorldText : AppTheme.tagTechText,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
                       Text(
                         article["title"] ?? "",
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          height: 1.25,
-                          color: CupertinoColors.white,
-                        ),
+                        style: AppTheme.cardTitleStyle,
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        "By: ${article["author"] ?? 'Unknown'}",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: CupertinoColors.systemGrey,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            "By: ${article["author"] ?? 'Unknown'}",
+                            style: AppTheme.authorStyle,
+                          ),
+                          const Spacer(),
+                          const Icon(CupertinoIcons.clock, size: 12, color: AppTheme.textMuted),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getPublishedDate(article),
+                            style: AppTheme.dateStyle,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       Text(
                         article["body"] ?? "",
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.4,
-                          color: CupertinoColors.white.withValues(alpha: 0.8),
-                        ),
+                        style: AppTheme.bodyStyle,
                       ),
                       const SizedBox(height: 12),
                       const Row(
@@ -266,14 +502,14 @@ class _HomePageState extends State<HomePage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: CupertinoColors.systemBlue,
+                              color: AppTheme.accentBlue,
                             ),
                           ),
                           SizedBox(width: 4),
                           Icon(
                             CupertinoIcons.chevron_right,
                             size: 14,
-                            color: CupertinoColors.systemBlue,
+                            color: AppTheme.accentBlue,
                           ),
                         ],
                       ),
@@ -395,8 +631,9 @@ class _AddNewsPageState extends State<AddNewsPage> {
               width: MediaQuery.of(dialogContext).size.width * 0.78,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF2C2C2E),
+                color: AppTheme.cardDark,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.borderDark),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -419,8 +656,9 @@ class _AddNewsPageState extends State<AddNewsPage> {
                     style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: AppTheme.backgroundDark,
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.borderDark),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -432,8 +670,9 @@ class _AddNewsPageState extends State<AddNewsPage> {
                     style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: AppTheme.backgroundDark,
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.borderDark),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -446,8 +685,9 @@ class _AddNewsPageState extends State<AddNewsPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     maxLines: 4,
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: AppTheme.backgroundDark,
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.borderDark),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -467,7 +707,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
                           child: Text(
                             isEditing ? "Delete" : "Cancel",
                             style: TextStyle(
-                              color: isEditing ? const Color(0xFFFF453A) : const Color(0xFF8E8E93),
+                              color: isEditing ? AppTheme.alertRed : const Color(0xFF8E8E93),
                               fontSize: 14,
                               fontWeight: isEditing ? FontWeight.bold : FontWeight.w500,
                             ),
@@ -494,10 +734,10 @@ class _AddNewsPageState extends State<AddNewsPage> {
                             Navigator.pop(dialogContext);
                           }
                         },
-                        child: Text(
-                          isEditing ? "Save" : "Publish",
-                          style: const TextStyle(
-                            color: Color(0xFF0A84FF),
+                        child: const Text(
+                          "Publish",
+                          style: TextStyle(
+                            color: AppTheme.accentBlue,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -528,23 +768,23 @@ class _AddNewsPageState extends State<AddNewsPage> {
                 children: [
                   const Text(
                     "News Management",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.textWhite),
                   ),
                   GestureDetector(
                     onTap: getNews,
-                    child: const Icon(CupertinoIcons.refresh, size: 22, color: CupertinoColors.systemBlue),
+                    child: const Icon(CupertinoIcons.refresh, size: 22, color: AppTheme.accentBlue),
                   ),
                 ],
               ),
             ),
 
-            const Divider(color: CupertinoColors.systemGrey4),
+            const Divider(color: AppTheme.borderDark),
 
             Expanded(
               child: isLoading
-                  ? const Center(child: CupertinoActivityIndicator())
+                  ? const Center(child: CupertinoActivityIndicator(color: AppTheme.accentBlue))
                   : publishedNews.isEmpty
-                  ? const Center(child: Text("No news published yet."))
+                  ? const Center(child: Text("No news published yet.", style: TextStyle(color: AppTheme.textMuted)))
                   : ListView.builder(
                 itemCount: publishedNews.length,
                 padding: const EdgeInsets.only(bottom: 180),
@@ -561,25 +801,24 @@ class _AddNewsPageState extends State<AddNewsPage> {
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.darkBackgroundGray,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: CupertinoColors.systemGrey.withValues(alpha: 0.3)),
-                        ),
+                        decoration: AppTheme.cardDecoration,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               item["title"] ?? "",
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: AppTheme.cardTitleStyle,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               "By: ${item["author"] ?? 'Unknown'}",
-                              style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
+                              style: AppTheme.authorStyle,
                             ),
                             const SizedBox(height: 8),
-                            Text(item["body"] ?? ""),
+                            Text(
+                              item["body"] ?? "",
+                              style: AppTheme.bodyStyle,
+                            ),
                           ],
                         ),
                       ),
@@ -601,7 +840,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
               height: 52,
               width: 52,
               decoration: const BoxDecoration(
-                color: CupertinoColors.systemBlue,
+                color: AppTheme.primaryBlue,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -613,7 +852,7 @@ class _AddNewsPageState extends State<AddNewsPage> {
               ),
               child: const Icon(
                 CupertinoIcons.add,
-                color: CupertinoColors.white,
+                color: AppTheme.textWhite,
                 size: 28,
               ),
             ),
